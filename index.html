@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Weather App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .weather-card {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #2d3436;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .sun {
+            font-size: 80px;
+            margin: 20px 0;
+        }
+
+        .location {
+            color: #636e72;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .temp-box {
+            background: #ffeaa7;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .temp-box h2 {
+            color: #d63031;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .temp-number {
+            font-size: 50px;
+            font-weight: bold;
+            color: #e17055;
+        }
+
+        .weekly-box {
+            background: #81ecec;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .weekly-box h2 {
+            color: #00b894;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .weekly-box .temp-number {
+            color: #00b894;
+        }
+
+        .loading {
+            color: #636e72;
+            font-size: 18px;
+        }
+
+        .error {
+            color: #d63031;
+            font-size: 16px;
+            padding: 20px;
+        }
+
+        button {
+            background: #6c5ce7;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background: #5f4ed3;
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-card">
+        <h1>My Weather App</h1>
+        <div class="sun">☀️</div>
+        <p class="location" id="location">Finding your location...</p>
+
+        <div id="weather-info">
+            <p class="loading">Loading weather data...</p>
+        </div>
+
+        <button onclick="getWeather()">Refresh</button>
+        <button onclick="showWorldWeather()" style="background: #00b894;">Show Me Around The World 🌍</button>
+    </div>
+
+    <script>
+        // This function gets the weather
+        async function getWeather() {
+            const weatherInfo = document.getElementById('weather-info');
+            const locationText = document.getElementById('location');
+
+            weatherInfo.innerHTML = '<p class="loading">Loading weather data...</p>';
+
+            try {
+                // First, find where you are
+                const geoResponse = await fetch('https://ipapi.co/json/');
+                const geoData = await geoResponse.json();
+
+                const city = geoData.city;
+                const latitude = geoData.latitude;
+                const longitude = geoData.longitude;
+
+                locationText.textContent = '📍 ' + city;
+
+                // Now get the weather for your location
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max&timezone=auto&temperature_unit=fahrenheit`;
+
+                const weatherResponse = await fetch(weatherUrl);
+                const weatherData = await weatherResponse.json();
+
+                // Get today's peak temperature
+                const todayHigh = Math.round(weatherData.daily.temperature_2m_max[0]);
+
+                // Find the highest temperature this week
+                const allHighs = weatherData.daily.temperature_2m_max;
+                const weeklyHigh = Math.round(Math.max(...allHighs));
+
+                // Show the temperatures!
+                weatherInfo.innerHTML = `
+                    <div class="temp-box">
+                        <h2>Today's Peak Temperature</h2>
+                        <div class="temp-number">${todayHigh}°F</div>
+                    </div>
+                    <div class="weekly-box">
+                        <h2>This Week's Peak Temperature</h2>
+                        <div class="temp-number">${weeklyHigh}°F</div>
+                    </div>
+                `;
+
+            } catch (error) {
+                weatherInfo.innerHTML = '<p class="error">Oops! Could not get weather. Try again!</p>';
+                console.log('Error:', error);
+            }
+        }
+
+        // Fun cities around the world!
+        const worldCities = [
+            { name: "Tokyo, Japan", lat: 35.68, lon: 139.76, flag: "🇯🇵" },
+            { name: "Paris, France", lat: 48.85, lon: 2.35, flag: "🇫🇷" },
+            { name: "Sydney, Australia", lat: -33.87, lon: 151.21, flag: "🇦🇺" },
+            { name: "Cairo, Egypt", lat: 30.04, lon: 31.24, flag: "🇪🇬" },
+            { name: "Rio de Janeiro, Brazil", lat: -22.91, lon: -43.17, flag: "🇧🇷" },
+            { name: "London, England", lat: 51.51, lon: -0.13, flag: "🇬🇧" }
+        ];
+
+        // Show weather around the world
+        async function showWorldWeather() {
+            const weatherInfo = document.getElementById('weather-info');
+            const locationText = document.getElementById('location');
+
+            locationText.textContent = '🌍 Around The World!';
+            weatherInfo.innerHTML = '<p class="loading">Loading world weather...</p>';
+
+            try {
+                let worldHTML = '';
+
+                for (const city of worldCities) {
+                    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=temperature_2m_max&timezone=auto&temperature_unit=fahrenheit`;
+                    const response = await fetch(weatherUrl);
+                    const data = await response.json();
+                    const temp = Math.round(data.daily.temperature_2m_max[0]);
+
+                    worldHTML += `
+                        <div style="background: #dfe6e9; border-radius: 15px; padding: 15px; margin: 10px 0; text-align: left;">
+                            <span style="font-size: 24px;">${city.flag}</span>
+                            <strong>${city.name}</strong>
+                            <span style="float: right; color: #e17055; font-weight: bold;">${temp}°F</span>
+                        </div>
+                    `;
+                }
+
+                weatherInfo.innerHTML = worldHTML;
+
+            } catch (error) {
+                weatherInfo.innerHTML = '<p class="error">Oops! Could not get world weather. Try again!</p>';
+            }
+        }
+
+        // Get weather when the page loads
+        getWeather();
+    </script>
+</body>
+</html>
