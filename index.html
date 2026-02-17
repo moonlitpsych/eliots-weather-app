@@ -152,6 +152,7 @@
         <button onclick="getWeather()">Refresh</button>
         <button onclick="showWorldWeather()" style="background: #00b894;">Show Me Around The World 🌍</button>
         <button onclick="goBack()" id="back-button" style="background: #fdcb6e; color: #2d3436; display: none;">⬅️ Back</button>
+        <button onclick="showWalkTab()" style="background: #55efc4; color: #2d3436;">🚶 Best Time to Walk</button>
         <button onclick="toggleSettings()" style="background: #a29bfe;">⚙️ Settings</button>
 
         <div id="settings-panel" style="display: none; background: #dfe6e9; border-radius: 20px; padding: 20px; margin-top: 20px; text-align: left;">
@@ -324,6 +325,105 @@
 
         // Load favorites on start
         showFavorites();
+
+        // Walk preference (warmest or coolest)
+        let walkPreference = 'warmest';
+
+        // Show Best Time to Walk tab
+        async function showWalkTab() {
+            playSound('click');
+            const weatherInfo = document.getElementById('weather-info');
+            const locationText = document.getElementById('location');
+            document.getElementById('back-button').style.display = 'inline-block';
+
+            weatherInfo.innerHTML = '<p class="loading">Finding best walk time...</p>';
+
+            try {
+                // Get location
+                const geoResponse = await fetch('https://ipapi.co/json/');
+                const geoData = await geoResponse.json();
+                const latitude = geoData.latitude;
+                const longitude = geoData.longitude;
+                locationText.textContent = '📍 ' + geoData.city;
+
+                // Get hourly weather
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m&timezone=auto&temperature_unit=${tempUnit}`;
+                const weatherResponse = await fetch(weatherUrl);
+                const weatherData = await weatherResponse.json();
+
+                showWalkResults(weatherData);
+
+            } catch (error) {
+                weatherInfo.innerHTML = '<p class="error">Oops! Could not get walk time. Try again!</p>';
+            }
+        }
+
+        // Show walk results with toggle
+        function showWalkResults(weatherData) {
+            const weatherInfo = document.getElementById('weather-info');
+            const unitSymbol = tempUnit === 'fahrenheit' ? '°F' : '°C';
+
+            // Find best time between 7am (hour 7) and 8pm (hour 20)
+            let bestWalkTime = '--';
+            let bestWalkTemp = walkPreference === 'warmest' ? -999 : 999;
+            let bestHourIndex = -1;
+
+            if (weatherData.hourly && weatherData.hourly.temperature_2m) {
+                for (let i = 7; i <= 20; i++) { // 7am to 8pm
+                    const temp = weatherData.hourly.temperature_2m[i];
+                    if (walkPreference === 'warmest') {
+                        if (temp > bestWalkTemp) {
+                            bestWalkTemp = temp;
+                            bestHourIndex = i;
+                        }
+                    } else {
+                        if (temp < bestWalkTemp) {
+                            bestWalkTemp = temp;
+                            bestHourIndex = i;
+                        }
+                    }
+                }
+                if (bestHourIndex >= 0) {
+                    bestWalkTime = new Date(weatherData.hourly.time[bestHourIndex]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    bestWalkTemp = Math.round(bestWalkTemp);
+                }
+            }
+
+            // Store weather data for toggle
+            window.walkWeatherData = weatherData;
+
+            const warmestActive = walkPreference === 'warmest' ? '#e17055' : '#636e72';
+            const coolestActive = walkPreference === 'coolest' ? '#0984e3' : '#636e72';
+            const boxColor = walkPreference === 'warmest' ? 'linear-gradient(135deg, #ff7675, #d63031)' : 'linear-gradient(135deg, #74b9ff, #0984e3)';
+            const emoji = walkPreference === 'warmest' ? '☀️' : '❄️';
+
+            weatherInfo.innerHTML = `
+                <div style="background: #dfe6e9; border-radius: 20px; padding: 20px; margin: 15px 0;">
+                    <h2 style="color: #2d3436; margin-bottom: 15px;">🚶 Best Time to Walk</h2>
+                    <p style="color: #636e72; margin-bottom: 15px;">I want to walk when it's:</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+                        <button onclick="setWalkPreference('warmest')" style="background: ${warmestActive}; padding: 15px 25px; font-size: 16px;">☀️ Warmest</button>
+                        <button onclick="setWalkPreference('coolest')" style="background: ${coolestActive}; padding: 15px 25px; font-size: 16px;">❄️ Coolest</button>
+                    </div>
+                </div>
+                <div style="background: ${boxColor}; border-radius: 20px; padding: 25px; margin: 15px 0; text-align: center;">
+                    <div style="font-size: 50px; margin-bottom: 10px;">${emoji} 🚶</div>
+                    <h2 style="color: white; font-size: 20px;">Best Time for Your Walk</h2>
+                    <div style="font-size: 48px; font-weight: bold; color: white; margin: 15px 0;">${bestWalkTime}</div>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 18px;">It will be ${bestWalkTemp}${unitSymbol}</p>
+                </div>
+                <p style="color: #636e72; font-size: 14px; text-align: center;">Between 7:00 AM and 8:00 PM</p>
+            `;
+        }
+
+        // Set walk preference and refresh
+        function setWalkPreference(pref) {
+            playSound('click');
+            walkPreference = pref;
+            if (window.walkWeatherData) {
+                showWalkResults(window.walkWeatherData);
+            }
+        }
 
         // Store forecast data for radar
         let forecastData = null;
