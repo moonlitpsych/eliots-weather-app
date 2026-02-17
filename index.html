@@ -439,7 +439,7 @@
                 locationText.textContent = '📍 ' + city.name + ', ' + (city.country || '');
 
                 // Get weather for that city
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&daily=temperature_2m_max,weathercode,windspeed_10m_max,precipitation_probability_max,sunrise,sunset&current_weather=true&timezone=auto&temperature_unit=${tempUnit}`;
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&daily=temperature_2m_max,weathercode,windspeed_10m_max,precipitation_probability_max,sunrise,sunset&hourly=temperature_2m&current_weather=true&timezone=auto&temperature_unit=${tempUnit}`;
                 const weatherResponse = await fetch(weatherUrl);
                 const weatherData = await weatherResponse.json();
 
@@ -467,6 +467,19 @@
                 // Get sunrise and sunset
                 const sunriseTime = weatherData.daily.sunrise ? new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
                 const sunsetTime = weatherData.daily.sunset ? new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
+
+                // Find the hottest time today
+                let hottestTime = '--';
+                let hottestTemp = -999;
+                if (weatherData.hourly && weatherData.hourly.temperature_2m) {
+                    for (let i = 0; i < 24; i++) {
+                        if (weatherData.hourly.temperature_2m[i] > hottestTemp) {
+                            hottestTemp = weatherData.hourly.temperature_2m[i];
+                            hottestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        }
+                    }
+                    hottestTemp = Math.round(hottestTemp);
+                }
 
                 // Check for weather alerts
                 let alertHTML = '';
@@ -514,6 +527,11 @@
                         <div style="font-size: 30px; font-weight: bold; color: white;">${rainChance}%</div>
                         <p style="font-size: 12px; color: #dfe6e9; margin-top: 5px;">👆 Tap for forecast</p>
                     </div>
+                    <div style="background: linear-gradient(135deg, #ff7675, #d63031); border-radius: 20px; padding: 15px; margin: 15px 0; text-align: center;">
+                        <h2 style="color: white; font-size: 18px;">🔥 Hottest Time Today</h2>
+                        <div style="font-size: 36px; font-weight: bold; color: white;">${hottestTime}</div>
+                        <p style="color: #fab1a0; font-size: 14px;">${hottestTemp}${unitSymbol}</p>
+                    </div>
                     <div style="display: flex; gap: 10px; margin: 15px 0;">
                         <div style="background: #ffeaa7; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
                             <h2 style="color: #2d3436; font-size: 16px;">🌅 Sunrise</h2>
@@ -549,7 +567,7 @@
                 locationText.textContent = '📍 ' + city;
 
                 // Now get the weather for your location
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,weathercode,windspeed_10m_max,precipitation_probability_max,sunrise,sunset&current_weather=true&timezone=auto&temperature_unit=${tempUnit}`;
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,weathercode,windspeed_10m_max,precipitation_probability_max,sunrise,sunset&hourly=temperature_2m&current_weather=true&timezone=auto&temperature_unit=${tempUnit}`;
 
                 const weatherResponse = await fetch(weatherUrl);
                 const weatherData = await weatherResponse.json();
@@ -580,6 +598,19 @@
                 // Get sunrise and sunset
                 const sunriseTime = weatherData.daily.sunrise ? new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
                 const sunsetTime = weatherData.daily.sunset ? new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
+
+                // Find the hottest time today
+                let hottestTime = '--';
+                let hottestTemp = -999;
+                if (weatherData.hourly && weatherData.hourly.temperature_2m) {
+                    for (let i = 0; i < 24; i++) {
+                        if (weatherData.hourly.temperature_2m[i] > hottestTemp) {
+                            hottestTemp = weatherData.hourly.temperature_2m[i];
+                            hottestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        }
+                    }
+                    hottestTemp = Math.round(hottestTemp);
+                }
 
                 // Check for weather alerts (storms, heavy rain, etc.)
                 let alertHTML = '';
@@ -627,6 +658,11 @@
                         <h2 style="color: white; font-size: 18px;">🌧️ Rain Chance</h2>
                         <div style="font-size: 30px; font-weight: bold; color: white;">${rainChance}%</div>
                         <p style="font-size: 12px; color: #dfe6e9; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #ff7675, #d63031); border-radius: 20px; padding: 15px; margin: 15px 0; text-align: center;">
+                        <h2 style="color: white; font-size: 18px;">🔥 Hottest Time Today</h2>
+                        <div style="font-size: 36px; font-weight: bold; color: white;">${hottestTime}</div>
+                        <p style="color: #fab1a0; font-size: 14px;">${hottestTemp}${unitSymbol}</p>
                     </div>
                     <div style="display: flex; gap: 10px; margin: 15px 0;">
                         <div style="background: #ffeaa7; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
