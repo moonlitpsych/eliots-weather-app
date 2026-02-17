@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Weather App</title>
+    <title>Eliot's Weather App</title>
     <style>
         * {
             margin: 0;
@@ -40,6 +40,34 @@
         .sun {
             font-size: 80px;
             margin: 20px 0;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .spinning {
+            animation: spin 10s linear infinite;
+        }
+
+        .pulsing {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
         }
 
         .location {
@@ -113,8 +141,8 @@
 </head>
 <body>
     <div class="weather-card">
-        <h1>My Weather App</h1>
-        <div class="sun">☀️</div>
+        <h1>Eliot's Weather App</h1>
+        <div class="sun" id="weather-icon">☀️</div>
         <p class="location" id="location">Finding your location...</p>
 
         <div id="weather-info">
@@ -123,9 +151,385 @@
 
         <button onclick="getWeather()">Refresh</button>
         <button onclick="showWorldWeather()" style="background: #00b894;">Show Me Around The World 🌍</button>
+        <button onclick="goBack()" id="back-button" style="background: #fdcb6e; color: #2d3436; display: none;">⬅️ Back</button>
+        <button onclick="toggleSettings()" style="background: #a29bfe;">⚙️ Settings</button>
+
+        <div id="settings-panel" style="display: none; background: #dfe6e9; border-radius: 20px; padding: 20px; margin-top: 20px; text-align: left;">
+            <h3 style="color: #2d3436; margin-bottom: 15px;">⚙️ Settings</h3>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #2d3436;">Temperature:</label><br>
+                <button onclick="setUnit('fahrenheit')" id="btn-f" style="background: #e17055; margin-top: 5px;">°F Fahrenheit</button>
+                <button onclick="setUnit('celsius')" id="btn-c" style="background: #636e72; margin-top: 5px;">°C Celsius</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #2d3436;">App Color:</label><br>
+                <button onclick="setColor('#74b9ff', '#0984e3')" style="background: #0984e3; margin-top: 5px;">Blue 💙</button>
+                <button onclick="setColor('#fd79a8', '#e84393')" style="background: #e84393; margin-top: 5px;">Pink 💗</button>
+                <button onclick="setColor('#55efc4', '#00b894')" style="background: #00b894; margin-top: 5px;">Green 💚</button>
+                <button onclick="setColor('#ffeaa7', '#fdcb6e')" style="background: #fdcb6e; color: #2d3436; margin-top: 5px;">Yellow 💛</button>
+                <button onclick="setColor('#a29bfe', '#6c5ce7')" style="background: #6c5ce7; margin-top: 5px;">Purple 💜</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #2d3436;">Search a City:</label><br>
+                <input type="text" id="city-input" placeholder="Type a city name..." style="padding: 10px; border-radius: 10px; border: 2px solid #b2bec3; margin-top: 5px; width: 100%; font-size: 16px;">
+                <button onclick="searchCity()" style="background: #00cec9; margin-top: 10px;">🔍 Search</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #2d3436;">Dark Mode:</label><br>
+                <button onclick="toggleDarkMode()" id="dark-mode-btn" style="background: #2d3436; margin-top: 5px;">🌙 Dark Mode</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #2d3436;">Sound Effects:</label><br>
+                <button onclick="toggleSound()" id="sound-btn" style="background: #00b894; margin-top: 5px;">🔊 Sound ON</button>
+            </div>
+
+            <button onclick="toggleSettings()" style="background: #636e72; margin-top: 10px;">Close Settings</button>
+        </div>
+
+        <div id="favorites-section" style="margin-top: 20px;">
+            <h3 style="color: #2d3436; margin-bottom: 10px;">⭐ Favorite Cities</h3>
+            <div id="favorites-list"></div>
+            <button onclick="addFavorite()" style="background: #fdcb6e; color: #2d3436; margin-top: 10px;">⭐ Save Current City</button>
+        </div>
     </div>
 
     <script>
+        // Settings
+        let tempUnit = 'fahrenheit';
+        let darkMode = false;
+        let soundOn = true;
+        let currentCity = '';
+        let favorites = JSON.parse(localStorage.getItem('weatherFavorites')) || [];
+
+        // Sound effects using Web Audio
+        function playSound(type) {
+            if (!soundOn) return;
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            if (type === 'click') {
+                oscillator.frequency.value = 800;
+                gainNode.gain.value = 0.1;
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+            } else if (type === 'success') {
+                oscillator.frequency.value = 600;
+                gainNode.gain.value = 0.1;
+                oscillator.start();
+                setTimeout(() => { oscillator.frequency.value = 800; }, 100);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+        }
+
+        // Toggle sound
+        function toggleSound() {
+            soundOn = !soundOn;
+            const btn = document.getElementById('sound-btn');
+            if (soundOn) {
+                btn.textContent = '🔊 Sound ON';
+                btn.style.background = '#00b894';
+                playSound('click');
+            } else {
+                btn.textContent = '🔇 Sound OFF';
+                btn.style.background = '#636e72';
+            }
+        }
+
+        // Dark mode
+        function toggleDarkMode() {
+            playSound('click');
+            darkMode = !darkMode;
+            const card = document.querySelector('.weather-card');
+            const btn = document.getElementById('dark-mode-btn');
+            const h1 = document.querySelector('h1');
+            const favSection = document.getElementById('favorites-section');
+
+            if (darkMode) {
+                document.body.style.background = 'linear-gradient(135deg, #2d3436, #000000)';
+                card.style.background = '#1e272e';
+                card.style.color = 'white';
+                h1.style.color = 'white';
+                favSection.querySelector('h3').style.color = 'white';
+                btn.textContent = '☀️ Light Mode';
+                btn.style.background = '#ffeaa7';
+                btn.style.color = '#2d3436';
+            } else {
+                document.body.style.background = 'linear-gradient(135deg, #74b9ff, #0984e3)';
+                card.style.background = 'white';
+                card.style.color = '#2d3436';
+                h1.style.color = '#2d3436';
+                favSection.querySelector('h3').style.color = '#2d3436';
+                btn.textContent = '🌙 Dark Mode';
+                btn.style.background = '#2d3436';
+                btn.style.color = 'white';
+            }
+        }
+
+        // Get weather icon based on weather code
+        function getWeatherIcon(weatherCode) {
+            // Weather codes from Open-Meteo
+            if (weatherCode === 0) return '☀️'; // Clear
+            if (weatherCode <= 3) return '⛅'; // Partly cloudy
+            if (weatherCode <= 49) return '☁️'; // Cloudy/Fog
+            if (weatherCode <= 59) return '🌧️'; // Drizzle
+            if (weatherCode <= 69) return '🌧️'; // Rain
+            if (weatherCode <= 79) return '❄️'; // Snow
+            if (weatherCode <= 99) return '⛈️'; // Thunderstorm
+            return '☀️';
+        }
+
+        // Favorites
+        function addFavorite() {
+            playSound('success');
+            if (!currentCity || favorites.includes(currentCity)) return;
+            favorites.push(currentCity);
+            localStorage.setItem('weatherFavorites', JSON.stringify(favorites));
+            showFavorites();
+        }
+
+        function removeFavorite(city) {
+            playSound('click');
+            favorites = favorites.filter(f => f !== city);
+            localStorage.setItem('weatherFavorites', JSON.stringify(favorites));
+            showFavorites();
+        }
+
+        function showFavorites() {
+            const list = document.getElementById('favorites-list');
+            if (favorites.length === 0) {
+                list.innerHTML = '<p style="color: #636e72; font-size: 14px;">No favorites yet!</p>';
+                return;
+            }
+            list.innerHTML = favorites.map(city => `
+                <div style="background: #dfe6e9; border-radius: 10px; padding: 10px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="cursor: pointer;" onclick="searchCityByName('${city}')">${city}</span>
+                    <button onclick="removeFavorite('${city}')" style="background: #d63031; padding: 5px 10px; font-size: 12px;">❌</button>
+                </div>
+            `).join('');
+        }
+
+        function searchCityByName(cityName) {
+            document.getElementById('city-input').value = cityName;
+            searchCity();
+        }
+
+        // Load favorites on start
+        showFavorites();
+
+        // Store forecast data for radar
+        let forecastData = null;
+
+        // Show radar/chart when clicking on temperature or wind
+        function showRadar(type) {
+            playSound('click');
+            if (!forecastData) return;
+
+            const weatherInfo = document.getElementById('weather-info');
+            const days = ['Today', 'Tomorrow', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+            const unitSymbol = tempUnit === 'fahrenheit' ? '°F' : '°C';
+
+            let data, title, color, suffix;
+            if (type === 'temp') {
+                data = forecastData.daily.temperature_2m_max;
+                title = '🌡️ Temperature Forecast';
+                color = '#e17055';
+                suffix = unitSymbol;
+            } else if (type === 'wind') {
+                data = forecastData.daily.windspeed_10m_max || [10, 12, 8, 15, 11, 9, 13];
+                title = '💨 Wind Speed Forecast';
+                color = '#0984e3';
+                suffix = ' mph';
+            } else if (type === 'rain') {
+                data = forecastData.daily.precipitation_probability_max || [20, 30, 10, 50, 40, 25, 15];
+                title = '🌧️ Rain Chance Forecast';
+                color = '#a29bfe';
+                suffix = '%';
+            }
+
+            // Find max value for scaling the bars
+            const maxVal = Math.max(...data.slice(0, 7));
+
+            // Build the radar/chart
+            let chartHTML = `
+                <div style="background: linear-gradient(135deg, #2d3436, #636e72); border-radius: 20px; padding: 20px; margin: 15px 0;">
+                    <h2 style="color: white; margin-bottom: 15px;">${title}</h2>
+                    <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 150px; padding: 10px;">
+            `;
+
+            for (let i = 0; i < 7 && i < data.length; i++) {
+                const value = Math.round(data[i]);
+                const barHeight = (value / maxVal) * 100;
+                chartHTML += `
+                    <div style="text-align: center; flex: 1;">
+                        <div style="color: white; font-size: 12px; margin-bottom: 5px;">${value}${suffix}</div>
+                        <div style="background: ${color}; width: 30px; height: ${barHeight}px; margin: 0 auto; border-radius: 5px 5px 0 0;"></div>
+                        <div style="color: #b2bec3; font-size: 10px; margin-top: 5px;">${days[i]}</div>
+                    </div>
+                `;
+            }
+
+            chartHTML += `
+                    </div>
+                    <button onclick="getWeather()" style="background: #00b894; margin-top: 15px;">⬅️ Back to Weather</button>
+                </div>
+            `;
+
+            weatherInfo.innerHTML = chartHTML;
+        }
+
+        // Toggle settings panel
+        function toggleSettings() {
+            const panel = document.getElementById('settings-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // Change temperature unit
+        function setUnit(unit) {
+            tempUnit = unit;
+            if (unit === 'fahrenheit') {
+                document.getElementById('btn-f').style.background = '#e17055';
+                document.getElementById('btn-c').style.background = '#636e72';
+            } else {
+                document.getElementById('btn-f').style.background = '#636e72';
+                document.getElementById('btn-c').style.background = '#e17055';
+            }
+            getWeather();
+        }
+
+        // Change app color
+        function setColor(color1, color2) {
+            document.body.style.background = `linear-gradient(135deg, ${color1}, ${color2})`;
+        }
+
+        // Search for a city
+        async function searchCity() {
+            const cityName = document.getElementById('city-input').value;
+            if (!cityName) return;
+
+            const weatherInfo = document.getElementById('weather-info');
+            const locationText = document.getElementById('location');
+
+            weatherInfo.innerHTML = '<p class="loading">Searching...</p>';
+
+            try {
+                // Find the city's coordinates
+                const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${cityName}&count=1`;
+                const geoResponse = await fetch(geoUrl);
+                const geoData = await geoResponse.json();
+
+                if (!geoData.results || geoData.results.length === 0) {
+                    weatherInfo.innerHTML = '<p class="error">City not found! Try again.</p>';
+                    return;
+                }
+
+                const city = geoData.results[0];
+                locationText.textContent = '📍 ' + city.name + ', ' + (city.country || '');
+
+                // Get weather for that city
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&daily=temperature_2m_max,weathercode,windspeed_10m_max,precipitation_probability_max,sunrise,sunset&current_weather=true&timezone=auto&temperature_unit=${tempUnit}`;
+                const weatherResponse = await fetch(weatherUrl);
+                const weatherData = await weatherResponse.json();
+
+                // Save forecast data for radar
+                forecastData = weatherData;
+
+                const todayHigh = Math.round(weatherData.daily.temperature_2m_max[0]);
+                const weeklyHigh = Math.round(Math.max(...weatherData.daily.temperature_2m_max));
+                const unitSymbol = tempUnit === 'fahrenheit' ? '°F' : '°C';
+
+                // Get weather icon and wind speed
+                const weatherCode = weatherData.current_weather.weathercode;
+                const windSpeed = Math.round(weatherData.current_weather.windspeed);
+                const icon = getWeatherIcon(weatherCode);
+                document.getElementById('weather-icon').textContent = icon;
+
+                // Save current city
+                currentCity = city.name + ', ' + (city.country || '');
+
+                playSound('success');
+
+                // Get rain chance
+                const rainChance = weatherData.daily.precipitation_probability_max ? weatherData.daily.precipitation_probability_max[0] : 0;
+
+                // Get sunrise and sunset
+                const sunriseTime = weatherData.daily.sunrise ? new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
+                const sunsetTime = weatherData.daily.sunset ? new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
+
+                // Check for weather alerts
+                let alertHTML = '';
+                if (weatherCode >= 95) {
+                    alertHTML = `<div style="background: #d63031; border-radius: 20px; padding: 15px; margin: 15px 0; animation: pulse 1s infinite;">
+                        <h2 style="color: white; font-size: 18px;">⚠️ STORM ALERT!</h2>
+                        <p style="color: white;">Thunderstorms expected! Stay safe indoors!</p>
+                    </div>`;
+                } else if (weatherCode >= 61 && weatherCode <= 67) {
+                    alertHTML = `<div style="background: #0984e3; border-radius: 20px; padding: 15px; margin: 15px 0;">
+                        <h2 style="color: white; font-size: 18px;">🌧️ Rain Alert</h2>
+                        <p style="color: white;">Rain expected today. Bring an umbrella!</p>
+                    </div>`;
+                } else if (weatherCode >= 71 && weatherCode <= 77) {
+                    alertHTML = `<div style="background: #74b9ff; border-radius: 20px; padding: 15px; margin: 15px 0;">
+                        <h2 style="color: white; font-size: 18px;">❄️ Snow Alert</h2>
+                        <p style="color: white;">Snow is falling! Bundle up warm!</p>
+                    </div>`;
+                } else if (windSpeed > 30) {
+                    alertHTML = `<div style="background: #fdcb6e; border-radius: 20px; padding: 15px; margin: 15px 0;">
+                        <h2 style="color: #2d3436; font-size: 18px;">💨 Wind Alert</h2>
+                        <p style="color: #2d3436;">Strong winds today! Hold onto your hat!</p>
+                    </div>`;
+                }
+
+                weatherInfo.innerHTML = `
+                    ${alertHTML}
+                    <div class="temp-box" onclick="showRadar('temp')" style="cursor: pointer;">
+                        <h2>Today's Peak Temperature</h2>
+                        <div class="temp-number">${todayHigh}${unitSymbol}</div>
+                        <p style="font-size: 12px; color: #636e72; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div class="weekly-box" onclick="showRadar('temp')" style="cursor: pointer;">
+                        <h2>This Week's Peak Temperature</h2>
+                        <div class="temp-number">${weeklyHigh}${unitSymbol}</div>
+                        <p style="font-size: 12px; color: #636e72; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="background: #b2bec3; border-radius: 20px; padding: 15px; margin: 15px 0; cursor: pointer;" onclick="showRadar('wind')">
+                        <h2 style="color: #2d3436; font-size: 18px;">💨 Wind Speed</h2>
+                        <div style="font-size: 30px; font-weight: bold; color: #0984e3;">${windSpeed} mph</div>
+                        <p style="font-size: 12px; color: #636e72; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="background: #a29bfe; border-radius: 20px; padding: 15px; margin: 15px 0; cursor: pointer;" onclick="showRadar('rain')">
+                        <h2 style="color: white; font-size: 18px;">🌧️ Rain Chance</h2>
+                        <div style="font-size: 30px; font-weight: bold; color: white;">${rainChance}%</div>
+                        <p style="font-size: 12px; color: #dfe6e9; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin: 15px 0;">
+                        <div style="background: #ffeaa7; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
+                            <h2 style="color: #2d3436; font-size: 16px;">🌅 Sunrise</h2>
+                            <div style="font-size: 24px; font-weight: bold; color: #e17055;">${sunriseTime}</div>
+                        </div>
+                        <div style="background: #636e72; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
+                            <h2 style="color: white; font-size: 16px;">🌇 Sunset</h2>
+                            <div style="font-size: 24px; font-weight: bold; color: #ffeaa7;">${sunsetTime}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                weatherInfo.innerHTML = '<p class="error">Oops! Something went wrong.</p>';
+            }
+        }
+
         // This function gets the weather
         async function getWeather() {
             const weatherInfo = document.getElementById('weather-info');
@@ -145,10 +549,13 @@
                 locationText.textContent = '📍 ' + city;
 
                 // Now get the weather for your location
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max&timezone=auto&temperature_unit=fahrenheit`;
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,weathercode,windspeed_10m_max,precipitation_probability_max,sunrise,sunset&current_weather=true&timezone=auto&temperature_unit=${tempUnit}`;
 
                 const weatherResponse = await fetch(weatherUrl);
                 const weatherData = await weatherResponse.json();
+
+                // Save forecast data for radar
+                forecastData = weatherData;
 
                 // Get today's peak temperature
                 const todayHigh = Math.round(weatherData.daily.temperature_2m_max[0]);
@@ -156,16 +563,80 @@
                 // Find the highest temperature this week
                 const allHighs = weatherData.daily.temperature_2m_max;
                 const weeklyHigh = Math.round(Math.max(...allHighs));
+                const unitSymbol = tempUnit === 'fahrenheit' ? '°F' : '°C';
 
-                // Show the temperatures!
+                // Get weather icon and wind speed
+                const weatherCode = weatherData.current_weather.weathercode;
+                const windSpeed = Math.round(weatherData.current_weather.windspeed);
+                const icon = getWeatherIcon(weatherCode);
+                document.getElementById('weather-icon').textContent = icon;
+
+                // Save current city
+                currentCity = city;
+
+                // Get rain chance
+                const rainChance = weatherData.daily.precipitation_probability_max ? weatherData.daily.precipitation_probability_max[0] : 0;
+
+                // Get sunrise and sunset
+                const sunriseTime = weatherData.daily.sunrise ? new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
+                const sunsetTime = weatherData.daily.sunset ? new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
+
+                // Check for weather alerts (storms, heavy rain, etc.)
+                let alertHTML = '';
+                if (weatherCode >= 95) {
+                    alertHTML = `<div style="background: #d63031; border-radius: 20px; padding: 15px; margin: 15px 0; animation: pulse 1s infinite;">
+                        <h2 style="color: white; font-size: 18px;">⚠️ STORM ALERT!</h2>
+                        <p style="color: white;">Thunderstorms expected! Stay safe indoors!</p>
+                    </div>`;
+                } else if (weatherCode >= 61 && weatherCode <= 67) {
+                    alertHTML = `<div style="background: #0984e3; border-radius: 20px; padding: 15px; margin: 15px 0;">
+                        <h2 style="color: white; font-size: 18px;">🌧️ Rain Alert</h2>
+                        <p style="color: white;">Rain expected today. Bring an umbrella!</p>
+                    </div>`;
+                } else if (weatherCode >= 71 && weatherCode <= 77) {
+                    alertHTML = `<div style="background: #74b9ff; border-radius: 20px; padding: 15px; margin: 15px 0;">
+                        <h2 style="color: white; font-size: 18px;">❄️ Snow Alert</h2>
+                        <p style="color: white;">Snow is falling! Bundle up warm!</p>
+                    </div>`;
+                } else if (windSpeed > 30) {
+                    alertHTML = `<div style="background: #fdcb6e; border-radius: 20px; padding: 15px; margin: 15px 0;">
+                        <h2 style="color: #2d3436; font-size: 18px;">💨 Wind Alert</h2>
+                        <p style="color: #2d3436;">Strong winds today! Hold onto your hat!</p>
+                    </div>`;
+                }
+
+                // Show the temperatures (clickable for radar!)
                 weatherInfo.innerHTML = `
-                    <div class="temp-box">
+                    ${alertHTML}
+                    <div class="temp-box" onclick="showRadar('temp')" style="cursor: pointer;">
                         <h2>Today's Peak Temperature</h2>
-                        <div class="temp-number">${todayHigh}°F</div>
+                        <div class="temp-number">${todayHigh}${unitSymbol}</div>
+                        <p style="font-size: 12px; color: #636e72; margin-top: 5px;">👆 Tap for forecast</p>
                     </div>
-                    <div class="weekly-box">
+                    <div class="weekly-box" onclick="showRadar('temp')" style="cursor: pointer;">
                         <h2>This Week's Peak Temperature</h2>
-                        <div class="temp-number">${weeklyHigh}°F</div>
+                        <div class="temp-number">${weeklyHigh}${unitSymbol}</div>
+                        <p style="font-size: 12px; color: #636e72; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="background: #b2bec3; border-radius: 20px; padding: 15px; margin: 15px 0; cursor: pointer;" onclick="showRadar('wind')">
+                        <h2 style="color: #2d3436; font-size: 18px;">💨 Wind Speed</h2>
+                        <div style="font-size: 30px; font-weight: bold; color: #0984e3;">${windSpeed} mph</div>
+                        <p style="font-size: 12px; color: #636e72; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="background: #a29bfe; border-radius: 20px; padding: 15px; margin: 15px 0; cursor: pointer;" onclick="showRadar('rain')">
+                        <h2 style="color: white; font-size: 18px;">🌧️ Rain Chance</h2>
+                        <div style="font-size: 30px; font-weight: bold; color: white;">${rainChance}%</div>
+                        <p style="font-size: 12px; color: #dfe6e9; margin-top: 5px;">👆 Tap for forecast</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin: 15px 0;">
+                        <div style="background: #ffeaa7; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
+                            <h2 style="color: #2d3436; font-size: 16px;">🌅 Sunrise</h2>
+                            <div style="font-size: 24px; font-weight: bold; color: #e17055;">${sunriseTime}</div>
+                        </div>
+                        <div style="background: #636e72; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
+                            <h2 style="color: white; font-size: 16px;">🌇 Sunset</h2>
+                            <div style="font-size: 24px; font-weight: bold; color: #ffeaa7;">${sunsetTime}</div>
+                        </div>
                     </div>
                 `;
 
@@ -182,7 +653,21 @@
             { name: "Sydney, Australia", lat: -33.87, lon: 151.21, flag: "🇦🇺" },
             { name: "Cairo, Egypt", lat: 30.04, lon: 31.24, flag: "🇪🇬" },
             { name: "Rio de Janeiro, Brazil", lat: -22.91, lon: -43.17, flag: "🇧🇷" },
-            { name: "London, England", lat: 51.51, lon: -0.13, flag: "🇬🇧" }
+            { name: "London, England", lat: 51.51, lon: -0.13, flag: "🇬🇧" },
+            { name: "New York, USA", lat: 40.71, lon: -74.01, flag: "🇺🇸" },
+            { name: "Beijing, China", lat: 39.90, lon: 116.41, flag: "🇨🇳" },
+            { name: "Moscow, Russia", lat: 55.76, lon: 37.62, flag: "🇷🇺" },
+            { name: "Dubai, UAE", lat: 25.20, lon: 55.27, flag: "🇦🇪" },
+            { name: "Cape Town, South Africa", lat: -33.93, lon: 18.42, flag: "🇿🇦" },
+            { name: "Mumbai, India", lat: 19.08, lon: 72.88, flag: "🇮🇳" },
+            { name: "Mexico City, Mexico", lat: 19.43, lon: -99.13, flag: "🇲🇽" },
+            { name: "Rome, Italy", lat: 41.90, lon: 12.50, flag: "🇮🇹" },
+            { name: "Seoul, South Korea", lat: 37.57, lon: 126.98, flag: "🇰🇷" },
+            { name: "Toronto, Canada", lat: 43.65, lon: -79.38, flag: "🇨🇦" },
+            { name: "Berlin, Germany", lat: 52.52, lon: 13.41, flag: "🇩🇪" },
+            { name: "Bangkok, Thailand", lat: 13.76, lon: 100.50, flag: "🇹🇭" },
+            { name: "Athens, Greece", lat: 37.98, lon: 23.73, flag: "🇬🇷" },
+            { name: "Reykjavik, Iceland", lat: 64.15, lon: -21.94, flag: "🇮🇸" }
         ];
 
         // Show weather around the world
@@ -192,6 +677,7 @@
 
             locationText.textContent = '🌍 Around The World!';
             weatherInfo.innerHTML = '<p class="loading">Loading world weather...</p>';
+            document.getElementById('back-button').style.display = 'inline-block';
 
             try {
                 let worldHTML = '';
@@ -216,6 +702,12 @@
             } catch (error) {
                 weatherInfo.innerHTML = '<p class="error">Oops! Could not get world weather. Try again!</p>';
             }
+        }
+
+        // Go back to your local weather
+        function goBack() {
+            document.getElementById('back-button').style.display = 'none';
+            getWeather();
         }
 
         // Get weather when the page loads
