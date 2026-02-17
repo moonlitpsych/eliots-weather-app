@@ -468,18 +468,36 @@
                 const sunriseTime = weatherData.daily.sunrise ? new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
                 const sunsetTime = weatherData.daily.sunset ? new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
 
-                // Find the hottest time today
-                let hottestTime = '--';
-                let hottestTemp = -999;
+                // Find the best time today (coolest in summer, hottest in winter)
+                let bestTime = '--';
+                let bestTemp = 0;
+                let isSummer = false;
+                const month = new Date().getMonth();
+                isSummer = (month >= 4 && month <= 8);
+
                 if (weatherData.hourly && weatherData.hourly.temperature_2m) {
-                    for (let i = 0; i < 24; i++) {
-                        if (weatherData.hourly.temperature_2m[i] > hottestTemp) {
-                            hottestTemp = weatherData.hourly.temperature_2m[i];
-                            hottestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    if (isSummer) {
+                        bestTemp = 999;
+                        for (let i = 0; i < 24; i++) {
+                            if (weatherData.hourly.temperature_2m[i] < bestTemp) {
+                                bestTemp = weatherData.hourly.temperature_2m[i];
+                                bestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                        }
+                    } else {
+                        bestTemp = -999;
+                        for (let i = 0; i < 24; i++) {
+                            if (weatherData.hourly.temperature_2m[i] > bestTemp) {
+                                bestTemp = weatherData.hourly.temperature_2m[i];
+                                bestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
                         }
                     }
-                    hottestTemp = Math.round(hottestTemp);
+                    bestTemp = Math.round(bestTemp);
                 }
+                const bestTimeLabel = isSummer ? '❄️ Coolest Time Today' : '🔥 Hottest Time Today';
+                const bestTimeColor = isSummer ? 'linear-gradient(135deg, #74b9ff, #0984e3)' : 'linear-gradient(135deg, #ff7675, #d63031)';
+                const bestTimeSubColor = isSummer ? '#bee5ff' : '#fab1a0';
 
                 // Check for weather alerts
                 let alertHTML = '';
@@ -527,10 +545,10 @@
                         <div style="font-size: 30px; font-weight: bold; color: white;">${rainChance}%</div>
                         <p style="font-size: 12px; color: #dfe6e9; margin-top: 5px;">👆 Tap for forecast</p>
                     </div>
-                    <div style="background: linear-gradient(135deg, #ff7675, #d63031); border-radius: 20px; padding: 15px; margin: 15px 0; text-align: center;">
-                        <h2 style="color: white; font-size: 18px;">🔥 Hottest Time Today</h2>
-                        <div style="font-size: 36px; font-weight: bold; color: white;">${hottestTime}</div>
-                        <p style="color: #fab1a0; font-size: 14px;">${hottestTemp}${unitSymbol}</p>
+                    <div style="background: ${bestTimeColor}; border-radius: 20px; padding: 15px; margin: 15px 0; text-align: center;">
+                        <h2 style="color: white; font-size: 18px;">${bestTimeLabel}</h2>
+                        <div style="font-size: 36px; font-weight: bold; color: white;">${bestTime}</div>
+                        <p style="color: ${bestTimeSubColor}; font-size: 14px;">${bestTemp}${unitSymbol}</p>
                     </div>
                     <div style="display: flex; gap: 10px; margin: 15px 0;">
                         <div style="background: #ffeaa7; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
@@ -599,18 +617,39 @@
                 const sunriseTime = weatherData.daily.sunrise ? new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
                 const sunsetTime = weatherData.daily.sunset ? new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--';
 
-                // Find the hottest time today
-                let hottestTime = '--';
-                let hottestTemp = -999;
+                // Find the best time today (coolest in summer, hottest in winter)
+                let bestTime = '--';
+                let bestTemp = 0;
+                let isSummer = false;
+                const month = new Date().getMonth(); // 0-11
+                // Summer is May-September (months 4-8), Winter is October-April
+                isSummer = (month >= 4 && month <= 8);
+
                 if (weatherData.hourly && weatherData.hourly.temperature_2m) {
-                    for (let i = 0; i < 24; i++) {
-                        if (weatherData.hourly.temperature_2m[i] > hottestTemp) {
-                            hottestTemp = weatherData.hourly.temperature_2m[i];
-                            hottestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    if (isSummer) {
+                        // Find coolest time in summer
+                        bestTemp = 999;
+                        for (let i = 0; i < 24; i++) {
+                            if (weatherData.hourly.temperature_2m[i] < bestTemp) {
+                                bestTemp = weatherData.hourly.temperature_2m[i];
+                                bestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                        }
+                    } else {
+                        // Find hottest time in winter
+                        bestTemp = -999;
+                        for (let i = 0; i < 24; i++) {
+                            if (weatherData.hourly.temperature_2m[i] > bestTemp) {
+                                bestTemp = weatherData.hourly.temperature_2m[i];
+                                bestTime = new Date(weatherData.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
                         }
                     }
-                    hottestTemp = Math.round(hottestTemp);
+                    bestTemp = Math.round(bestTemp);
                 }
+                const bestTimeLabel = isSummer ? '❄️ Coolest Time Today' : '🔥 Hottest Time Today';
+                const bestTimeColor = isSummer ? 'linear-gradient(135deg, #74b9ff, #0984e3)' : 'linear-gradient(135deg, #ff7675, #d63031)';
+                const bestTimeSubColor = isSummer ? '#bee5ff' : '#fab1a0';
 
                 // Check for weather alerts (storms, heavy rain, etc.)
                 let alertHTML = '';
@@ -659,10 +698,10 @@
                         <div style="font-size: 30px; font-weight: bold; color: white;">${rainChance}%</div>
                         <p style="font-size: 12px; color: #dfe6e9; margin-top: 5px;">👆 Tap for forecast</p>
                     </div>
-                    <div style="background: linear-gradient(135deg, #ff7675, #d63031); border-radius: 20px; padding: 15px; margin: 15px 0; text-align: center;">
-                        <h2 style="color: white; font-size: 18px;">🔥 Hottest Time Today</h2>
-                        <div style="font-size: 36px; font-weight: bold; color: white;">${hottestTime}</div>
-                        <p style="color: #fab1a0; font-size: 14px;">${hottestTemp}${unitSymbol}</p>
+                    <div style="background: ${bestTimeColor}; border-radius: 20px; padding: 15px; margin: 15px 0; text-align: center;">
+                        <h2 style="color: white; font-size: 18px;">${bestTimeLabel}</h2>
+                        <div style="font-size: 36px; font-weight: bold; color: white;">${bestTime}</div>
+                        <p style="color: ${bestTimeSubColor}; font-size: 14px;">${bestTemp}${unitSymbol}</p>
                     </div>
                     <div style="display: flex; gap: 10px; margin: 15px 0;">
                         <div style="background: #ffeaa7; border-radius: 20px; padding: 15px; flex: 1; text-align: center;">
